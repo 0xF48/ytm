@@ -1,0 +1,49 @@
+.ytm-floating-button {
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  width: 56px !important;
+  height: 56px !important;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  color: white !important;
+  cursor: pointer !important;
+  font-size: 24px !important;
+  box-shadow: 0 4px 16px rgba(238, 90, 36, 0.3) !important;
+  transition: all 0.3s ease !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  font-family: Arial, sans-serif !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+}
+
+.ytm-floating-button:hover {
+  background: linear-gradient(135deg, #ee5a24, #d63031);
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(238, 90, 36, 0.4);
+}
+
+.ytm-floating-button:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(238, 90, 36, 0.3);
+}
+
+.ytm-floating-button:disabled {
+  background: #a0a0a0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 4px 16px rgba(160, 160, 160, 0.3);
+}
+
+.ytm-floating-button:disabled:hover {
+  background: #a0a0a0;
+  transform: none;
+  box-shadow: 0 4px 16px rgba(160, 160, 160, 0.3);
+}

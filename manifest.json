@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube to Music",
+  "version": "1.0",
+  "description": "Download YouTube videos as audio files and add them to Apple Music",
+  "permissions": [
+    "activeTab",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "*://www.youtube.com/*",
+    "*://youtu.be/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.youtube.com/*",
+        "*://youtu.be/*"
+      ],
+      "js": ["dist/content.js"]
+    }
+  ],
+  "background": {
+    "service_worker": "dist/background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube to Music"
+  }
+}

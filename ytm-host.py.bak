@@ -1,0 +1,97 @@
+#!/opt/homebrew/bin/python3
+"""
+Native messaging host for YouTube to Music Chrome extension.
+Executes the ytm shell function to download videos.
+"""
+
+import json
+import sys
+import struct
+import subprocess
+import os
+
+def read_message():
+    """Read a message from Chrome extension."""
+    raw_length = sys.stdin.buffer.read(4)
+    if len(raw_length) == 0:
+        sys.exit(0)
+    message_length = struct.unpack('@I', raw_length)[0]
+    message = sys.stdin.buffer.read(message_length).decode('utf-8')
+    return json.loads(message)
+
+def send_message(message):
+    """Send a message to Chrome extension."""
+    encoded_message = json.dumps(message).encode('utf-8')
+    sys.stdout.buffer.write(struct.pack('@I', len(encoded_message)))
+    sys.stdout.buffer.write(encoded_message)
+    sys.stdout.buffer.flush()
+
+def execute_ytm(url):
+    """Execute the ytm shell function with the given URL."""
+    try:
+        # Source .zshrc and execute ytm function
+        cmd = f'source ~/.zshrc && ytm "{url}"'
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            executable='/bin/zsh',
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        if result.returncode == 0:
+            return {
+                'success': True,
+                'message': 'Download completed successfully',
+                'output': result.stdout
+            }
+        else:
+            return {
+                'success': False,
+                'message': f'Download failed: {result.stderr}',
+                'output': result.stderr
+            }
+            
+    except subprocess.TimeoutExpired:
+        return {
+            'success': False,
+            'message': 'Download timed out after 5 minutes'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Error executing ytm: {str(e)}'
+        }
+
+def main():
+    """Main message loop."""
+    while True:
+        try:
+            message = read_message()
+            
+            if message.get('command') == 'download':
+                url = message.get('url')
+                if url:
+                    response = execute_ytm(url)
+                    send_message(response)
+                else:
+                    send_message({
+                        'success': False,
+                        'message': 'No URL provided'
+                    })
+            else:
+                send_message({
+                    'success': False,
+                    'message': 'Unknown command'
+                })
+                
+        except Exception as e:
+            send_message({
+                'success': False,
+                'message': f'Host error: {str(e)}'
+            })
+            break
+
+if __name__ == '__main__':
+    main()

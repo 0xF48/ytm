@@ -1,0 +1,9 @@
+{
+  "name": "com.ytm.downloader",
+  "description": "YouTube to Music downloader native host",
+  "path": "/Users/yurys/Documents/ytm/ytm-host.py",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://cnjmlcodocccbpliojngifohghahlopc/"
+  ]
+}
