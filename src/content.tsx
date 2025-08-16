@@ -22,6 +22,9 @@ const YouTubeDownloadButton: React.FC = () => {
   const [progress, setProgress] = useState(0);
   const [isAlreadyDownloaded, setIsAlreadyDownloaded] = useState(false);
   const [isCheckingFile, setIsCheckingFile] = useState(true);
+  const [hasMissingDependencies, setHasMissingDependencies] = useState(false);
+  const [missingDeps, setMissingDeps] = useState<string[]>([]);
+  const [installCommand, setInstallCommand] = useState('');
   const [videoTitle, setVideoTitle] = useState('');
   const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>({
     songName: '',
@@ -60,6 +63,9 @@ const YouTubeDownloadButton: React.FC = () => {
         setProgress(0);
         setIsAlreadyDownloaded(false);
         setIsCheckingFile(true);
+        setHasMissingDependencies(false);
+        setMissingDeps([]);
+        setInstallCommand('');
         setVideoTitle('');
         setDownloadStatus({
           songName: '',
@@ -72,8 +78,45 @@ const YouTubeDownloadButton: React.FC = () => {
       }
     };
 
+    const checkDependencies = async () => {
+      try {
+        const response = await new Promise<{success: boolean, missing: string[], install_command: string}>((resolve) => {
+          chrome.runtime.sendMessage({
+            action: 'checkDependencies'
+          }, resolve);
+        });
+
+        if (response && !response.success && response.missing && response.missing.length > 0) {
+          setHasMissingDependencies(true);
+          setMissingDeps(response.missing);
+          setInstallCommand(response.install_command || '');
+          console.log('YTM Extension: Missing dependencies:', response.missing);
+          return false;
+        } else {
+          setHasMissingDependencies(false);
+          setMissingDeps([]);
+          setInstallCommand('');
+          console.log('YTM Extension: All dependencies found');
+          return true;
+        }
+      } catch (error) {
+        console.error('YTM Extension: Error checking dependencies:', error);
+        setHasMissingDependencies(true);
+        setMissingDeps(['yt-dlp', 'ffmpeg']);
+        setInstallCommand('');
+        return false;
+      }
+    };
+
     const checkIfDownloaded = async () => {
       setIsCheckingFile(true);
+      
+      // First check dependencies
+      const depsOk = await checkDependencies();
+      if (!depsOk) {
+        setIsCheckingFile(false);
+        return;
+      }
       
       // Get video title from YouTube page with multiple selector attempts
       let titleElement = document.querySelector('h1.ytd-video-primary-info-renderer yt-formatted-string') ||
@@ -241,7 +284,7 @@ const YouTubeDownloadButton: React.FC = () => {
   const handleOpenFolder = () => {
     chrome.runtime.sendMessage({
       action: 'openFolder',
-      path: '/Users/yurys/Music/ytm'
+      path: 'music_directory'  // Will be resolved by the native host
     });
   };
 
@@ -286,6 +329,8 @@ const YouTubeDownloadButton: React.FC = () => {
           w-16 h-16 transition-all duration-200 flex items-center justify-center text-xl
           ${isDownloading 
             ? 'bg-orange-600 cursor-not-allowed' 
+            : hasMissingDependencies
+            ? 'bg-red-700 hover:bg-red-600'
             : isCheckingFile
             ? 'bg-yellow-700 hover:bg-yellow-600'
             : isAlreadyDownloaded
@@ -293,13 +338,14 @@ const YouTubeDownloadButton: React.FC = () => {
             : 'bg-green-700 hover:bg-green-600'
           }
           text-white border-2 
-          ${isDownloading ? 'border-orange-400' : isCheckingFile ? 'border-yellow-400' : isAlreadyDownloaded ? 'border-blue-400' : 'border-green-400'} 
+          ${isDownloading ? 'border-orange-400' : hasMissingDependencies ? 'border-red-400' : isCheckingFile ? 'border-yellow-400' : isAlreadyDownloaded ? 'border-blue-400' : 'border-green-400'} 
           rounded-sm
         `}
-        title={isExpanded ? "CLOSE" : isDownloading ? "DOWNLOADING..." : isCheckingFile ? "CHECKING..." : isAlreadyDownloaded ? "DOWNLOADED" : "DOWNLOAD"}
+        title={isExpanded ? "CLOSE" : isDownloading ? "DOWNLOADING..." : hasMissingDependencies ? "MISSING DEPENDENCIES" : isCheckingFile ? "CHECKING..." : isAlreadyDownloaded ? "DOWNLOADED" : "DOWNLOAD"}
       >
         {isDownloading ? <Download className="w-6 h-6 animate-pulse" /> : 
          isExpanded ? <X className="w-6 h-6" /> : 
+         hasMissingDependencies ? <AlertCircle className="w-6 h-6" /> :
          isCheckingFile ? <Music className="w-6 h-6 animate-pulse" /> :
          isAlreadyDownloaded ? <CheckCircle className="w-6 h-6" /> :
          <Music className="w-6 h-6" />}
@@ -310,6 +356,8 @@ const YouTubeDownloadButton: React.FC = () => {
         <div className={`absolute bottom-20 left-0 w-[700px] border-2 rounded-sm text-xl
           ${isDownloading
             ? 'bg-orange-900 border-orange-400'
+            : hasMissingDependencies
+            ? 'bg-red-900 border-red-400'
             : isCheckingFile 
             ? 'bg-yellow-900 border-yellow-400' 
             : isAlreadyDownloaded 
@@ -320,6 +368,8 @@ const YouTubeDownloadButton: React.FC = () => {
           <div className={`p-5 border-b
             ${isDownloading
               ? 'bg-orange-800 text-orange-100 border-orange-400'
+              : hasMissingDependencies
+              ? 'bg-red-800 text-red-100 border-red-400'
               : isCheckingFile 
               ? 'bg-yellow-800 text-yellow-100 border-yellow-400' 
               : isAlreadyDownloaded 
@@ -331,62 +381,89 @@ const YouTubeDownloadButton: React.FC = () => {
               YOUTUBE-TO-MUSIC
             </div>
             <div className="text-lg opacity-90 mt-1">
-              {isDownloading ? 'DOWNLOADING...' : isCheckingFile ? 'CHECKING FILE STATUS...' : isAlreadyDownloaded ? 'ALREADY DOWNLOADED' : 'READY TO DOWNLOAD'}
+              {isDownloading ? 'DOWNLOADING...' : hasMissingDependencies ? 'MISSING DEPENDENCIES' : isCheckingFile ? 'CHECKING FILE STATUS...' : isAlreadyDownloaded ? 'ALREADY DOWNLOADED' : 'READY TO DOWNLOAD'}
             </div>
           </div>
 
-          {/* Video Info */}
+          {/* Video Info / Dependencies Info */}
           <div className={`p-5 border-b
             ${isDownloading
               ? 'border-orange-400 bg-orange-800'
+              : hasMissingDependencies
+              ? 'border-red-400 bg-red-800'
               : isCheckingFile 
               ? 'border-yellow-400 bg-yellow-800' 
               : isAlreadyDownloaded 
               ? 'border-blue-400 bg-blue-800' 
               : 'border-green-400 bg-green-800'
             }`}>
-            <div className={`flex items-center gap-4
-              ${isDownloading
-                ? 'text-orange-100'
-                : isCheckingFile 
-                ? 'text-yellow-100' 
-                : isAlreadyDownloaded 
-                ? 'text-blue-100' 
-                : 'text-green-100'
-              }`}>
-              {isCheckingFile ? <Music className="w-7 h-7 animate-pulse" /> :
-               isAlreadyDownloaded ? <CheckCircle className="w-7 h-7 text-blue-400" /> : 
-               <Music className="w-7 h-7" />}
-              <div className="flex-1">
-                <div className="text-lg font-semibold">
-                  {isCheckingFile ? 'Checking file status...' : videoTitle || 'Loading video info...'}
+            {hasMissingDependencies ? (
+              <div className="text-red-100">
+                <div className="flex items-center gap-4 mb-4">
+                  <AlertCircle className="w-7 h-7 text-red-400" />
+                  <div className="flex-1">
+                    <div className="text-lg font-semibold">
+                      Missing Dependencies
+                    </div>
+                    <div className="text-base opacity-75 mt-1">
+                      {missingDeps.join(', ')} not found
+                    </div>
+                  </div>
                 </div>
-                <div className="text-base opacity-75 mt-1">
-                  ~/Music/ytm/
+                <div className="bg-red-700 p-4 rounded border border-red-500">
+                  <div className="text-lg font-semibold mb-2">Installation Required:</div>
+                  <div className="text-base font-mono bg-red-900 p-3 rounded border border-red-600">
+                    {installCommand || `Please install: ${missingDeps.join(', ')}`}
+                  </div>
+                  <div className="text-sm opacity-75 mt-2">
+                    Run the command above in your terminal, then reload this page.
+                  </div>
                 </div>
               </div>
-              {isCheckingFile ? null :
-               isAlreadyDownloaded ? (
-                <button
-                  onClick={handleOpenFolder}
-                  className="px-5 py-3 bg-blue-700 hover:bg-blue-600 rounded border border-blue-400 transition-colors flex items-center gap-2 text-base font-semibold"
-                  title="Open folder"
-                >
-                  <FolderOpen className="w-5 h-5" />
-                  OPEN FOLDER
-                </button>
-              ) : (
-                <button
-                  onClick={handleStartDownload}
-                  disabled={isDownloading}
-                  className="px-5 py-3 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded border border-green-400 transition-colors flex items-center gap-2 text-base font-semibold"
-                  title="Start download"
-                >
-                  <Download className="w-5 h-5" />
-                  START DOWNLOAD
-                </button>
-              )}
-            </div>
+            ) : (
+              <div className={`flex items-center gap-4
+                ${isDownloading
+                  ? 'text-orange-100'
+                  : isCheckingFile 
+                  ? 'text-yellow-100' 
+                  : isAlreadyDownloaded 
+                  ? 'text-blue-100' 
+                  : 'text-green-100'
+                }`}>
+                {isCheckingFile ? <Music className="w-7 h-7 animate-pulse" /> :
+                 isAlreadyDownloaded ? <CheckCircle className="w-7 h-7 text-blue-400" /> : 
+                 <Music className="w-7 h-7" />}
+                <div className="flex-1">
+                  <div className="text-lg font-semibold">
+                    {isCheckingFile ? 'Checking file status...' : videoTitle || 'Loading video info...'}
+                  </div>
+                  <div className="text-base opacity-75 mt-1">
+                    Music/ytm/
+                  </div>
+                </div>
+                {isCheckingFile ? null :
+                 isAlreadyDownloaded ? (
+                  <button
+                    onClick={handleOpenFolder}
+                    className="px-5 py-3 bg-blue-700 hover:bg-blue-600 rounded border border-blue-400 transition-colors flex items-center gap-2 text-base font-semibold"
+                    title="Open folder"
+                  >
+                    <FolderOpen className="w-5 h-5" />
+                    OPEN FOLDER
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartDownload}
+                    disabled={isDownloading || hasMissingDependencies}
+                    className="px-5 py-3 bg-green-700 hover:bg-green-600 disabled:bg-gray-600 rounded border border-green-400 transition-colors flex items-center gap-2 text-base font-semibold"
+                    title="Start download"
+                  >
+                    <Download className="w-5 h-5" />
+                    START DOWNLOAD
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Song Info & Status - Only when downloading */}
@@ -453,6 +530,8 @@ const YouTubeDownloadButton: React.FC = () => {
           <div className={`px-5 py-4 border-t text-base
             ${isDownloading
               ? 'bg-orange-800 text-orange-300 border-orange-400'
+              : hasMissingDependencies
+              ? 'bg-red-800 text-red-300 border-red-400'
               : isCheckingFile 
               ? 'bg-yellow-800 text-yellow-300 border-yellow-400' 
               : isAlreadyDownloaded 
@@ -461,11 +540,13 @@ const YouTubeDownloadButton: React.FC = () => {
             }`}>
             {isDownloading ?
               'DOWNLOADING AND CONVERTING AUDIO...' :
+              hasMissingDependencies ?
+              'INSTALL DEPENDENCIES TO CONTINUE' :
               isCheckingFile ? 
               'CHECKING IF FILE EXISTS...' :
               isAlreadyDownloaded ? 
-              'CLICK BUTTON TO CLOSE • FILE AVAILABLE IN ~/MUSIC/YTM' :
-              'CLICK BUTTON TO CLOSE • FILES SAVED TO ~/MUSIC/YTM'
+              'CLICK BUTTON TO CLOSE • FILE AVAILABLE IN MUSIC/YTM' :
+              'CLICK BUTTON TO CLOSE • FILES SAVED TO MUSIC/YTM'
             }
           </div>
         </div>

@@ -1,64 +1,127 @@
 # YouTube to Music Chrome Extension
 
-A Chrome extension that downloads YouTube videos as audio files and automatically adds them to Apple Music using the `ytm` shell function.
+A cross-platform Chrome extension that downloads YouTube videos as audio files and integrates with your system's music app.
 
 ## Features
 
-- 🎵 One-click download from YouTube video pages
-- 🍎 Automatic import to Apple Music
-- 🎨 Clean, integrated UI button on YouTube
-- ⚡ Uses native messaging for shell script execution
+- Download YouTube videos as high-quality audio (M4A format)
+- Cross-platform support (macOS, Windows, Linux)
+- Automatic integration with default music app (Apple Music on macOS)
+- Real-time download progress tracking
+- Color-coded UI status system
+- File existence checking to avoid duplicate downloads
+- Modern React-based UI with Tailwind CSS
+- Direct yt-dlp and ffmpeg execution (no shell script dependency)
 
-## Setup Instructions
+## Prerequisites
 
-### 1. Install the Native Messaging Host
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - YouTube video downloader
+- [ffmpeg](https://ffmpeg.org/) - Audio processing
+- Python 3.6+ - For the native messaging host
 
-Copy the native messaging host configuration to Chrome's directory:
+### Installation of Prerequisites
 
+**macOS (with Homebrew):**
 ```bash
-mkdir -p ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
-cp ~/Documents/ytm/com.ytm.downloader.json ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
+brew install yt-dlp ffmpeg python
 ```
 
-### 2. Install Dependencies
-
-Make sure you have `yt-dlp` installed:
-
+**Windows:**
 ```bash
-brew install yt-dlp
+# Using winget
+winget install yt-dlp.yt-dlp
+winget install Gyan.FFmpeg
+winget install Python.Python.3
+
+# Or using chocolatey
+choco install yt-dlp ffmpeg python
 ```
 
-### 3. Load the Extension
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install python3 python3-pip ffmpeg
+pip3 install yt-dlp
+```
 
-1. Open Chrome and go to `chrome://extensions/`
-2. Enable "Developer mode" (toggle in top right)
-3. Click "Load unpacked"
-4. Select the `~/Documents/ytm` folder
-5. The extension should now be loaded
+## Setup
 
-### 4. Usage
+1. Clone and build the extension:
+   ```bash
+   git clone git@github.com:0xF48/ytm.git
+   cd ytm
+   npm install
+   npm run build
+   ```
+
+2. Load the extension in Chrome:
+   - Open Chrome and go to `chrome://extensions/`
+   - Enable "Developer mode"
+   - Click "Load unpacked" and select the project directory
+
+3. Set up native messaging:
+   - Copy the native messaging host to Chrome's directory:
+     ```bash
+     # macOS/Linux
+     mkdir -p ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
+     cp ytm-host.py ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
+     cp com.ytm.downloader.json ~/Library/Application\ Support/Google/Chrome/NativeMessagingHosts/
+     
+     # Windows
+     # Copy to %LOCALAPPDATA%\Google\Chrome\User Data\NativeMessagingHosts\
+     ```
+
+## Usage
 
 1. Navigate to any YouTube video
-2. Look for the "🎵 Download to Music" button next to the like/dislike buttons
-3. Click the button to download the video as audio
-4. The file will be automatically added to Apple Music
+2. The extension button will appear in the bottom-left corner
+3. Button colors indicate status:
+   - **Red**: Missing dependencies (yt-dlp/ffmpeg not found)
+   - **Yellow**: Checking if file already exists
+   - **Green**: Ready to download
+   - **Orange**: Downloading/converting
+   - **Blue**: Already downloaded
+4. Click to expand the interface and start download
+5. Watch real-time progress with detailed logs
+6. Files are saved to `~/Music/ytm/` and opened with your default music app
 
-## Files
+## Color Status System
 
-- `manifest.json` - Extension configuration
-- `content.js` - Content script that adds UI to YouTube pages
-- `background.js` - Background script for native messaging
-- `ytm-host.py` - Native messaging host that executes the ytm shell function
-- `popup.html/js` - Extension popup with instructions
-- `styles.css` - Styling for the download button
+- 🔴 **Red**: Missing dependencies (shows installation instructions)
+- 🟡 **Yellow**: Checking file existence
+- 🟢 **Green**: Ready to download  
+- 🟠 **Orange**: Actively downloading/converting
+- 🔵 **Blue**: File already downloaded
+
+## Development
+
+```bash
+# Development mode with auto-rebuild
+npm run dev
+
+# Production build
+npm run build
+
+# Clean build artifacts
+npm run clean
+```
+
+## Architecture
+
+- **React + TypeScript**: Modern frontend with type safety
+- **Tailwind CSS**: Utility-first styling
+- **Chrome Native Messaging**: Secure communication with system
+- **Python Host**: Direct yt-dlp/ffmpeg execution
+- **Cross-platform**: Automatic OS detection and appropriate music app integration
 
 ## Troubleshooting
 
-1. **Button not appearing**: Refresh the YouTube page after loading the extension
-2. **Download fails**: Check that the `ytm` function works in your terminal
-3. **Permission errors**: Make sure the native host script is executable (`chmod +x ytm-host.py`)
-4. **Native messaging errors**: Verify the host configuration is in the correct Chrome directory
+1. **Extension not loading**: Make sure all dependencies are installed and built
+2. **Download fails**: Check that yt-dlp and ffmpeg are in PATH or common locations
+3. **Native messaging errors**: Verify the host files are copied to the correct Chrome directory
+4. **Permission errors**: Make sure the Python host script is executable
+5. **Music app not opening**: Check that your system has a default music app configured
 
 ## Security Note
 
-This extension uses native messaging to execute shell commands. Only install from trusted sources and review the code before use.
+This extension uses native messaging to execute yt-dlp and ffmpeg commands. Only install from trusted sources and review the code before use.

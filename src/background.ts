@@ -141,6 +141,50 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Return true to indicate we'll send response asynchronously
     return true;
   }
+  
+  if (request.action === 'checkDependencies') {
+    console.log('Checking dependencies...');
+    
+    try {
+      const port = chrome.runtime.connectNative('com.ytm.downloader');
+      
+      port.postMessage({
+        command: 'checkDependencies'
+      });
+      
+      port.onMessage.addListener((response) => {
+        console.log('Check dependencies response:', response);
+        sendResponse({
+          success: response.success || false,
+          missing: response.missing || [],
+          install_command: response.install_command || '',
+          message: response.message || 'Check completed'
+        });
+      });
+      
+      port.onDisconnect.addListener(() => {
+        if (chrome.runtime.lastError) {
+          console.error('Native host disconnect error:', chrome.runtime.lastError);
+          sendResponse({
+            success: false,
+            missing: ['yt-dlp', 'ffmpeg'],
+            message: 'Failed to connect to native host'
+          });
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error checking dependencies:', error);
+      sendResponse({
+        success: false,
+        missing: ['yt-dlp', 'ffmpeg'],
+        message: `Error checking dependencies: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    }
+    
+    // Return true to indicate we'll send response asynchronously
+    return true;
+  }
 });
 
 // Handle extension icon click
