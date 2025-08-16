@@ -122,6 +122,5 @@ npm run clean
 4. **Permission errors**: Make sure the Python host script is executable
 5. **Music app not opening**: Check that your system has a default music app configured
 
-## Security Note
-
-This extension uses native messaging to execute yt-dlp and ffmpeg commands. Only install from trusted sources and review the code before use.
+## Example
+navigate to "https://www.youtube.com/watch?v=9HuO63khusE&list=OLAK5uy_neG2_ovDao0kWPpgaRiGJol8R8VSMeCzc&index=1" and then click bottom left green button
