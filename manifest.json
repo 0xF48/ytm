@@ -2,20 +2,22 @@
   "manifest_version": 3,
   "name": "YouTube to Music",
   "version": "1.0",
-  "description": "Download YouTube videos as audio files and add them to Apple Music",
+  "description": "Download YouTube videos and SoundCloud tracks as audio files and add them to Apple Music",
   "permissions": [
     "activeTab",
     "nativeMessaging"
   ],
   "host_permissions": [
     "*://www.youtube.com/*",
-    "*://youtu.be/*"
+    "*://youtu.be/*",
+    "*://soundcloud.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "*://www.youtube.com/*",
-        "*://youtu.be/*"
+        "*://youtu.be/*",
+        "*://soundcloud.com/*"
       ],
       "js": ["dist/content.js"]
     }

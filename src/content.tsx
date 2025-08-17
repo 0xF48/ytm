@@ -19,6 +19,7 @@ const YouTubeDownloadButton: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [showAllLogs, setShowAllLogs] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isAlreadyDownloaded, setIsAlreadyDownloaded] = useState(false);
   const [isCheckingFile, setIsCheckingFile] = useState(true);
@@ -32,6 +33,9 @@ const YouTubeDownloadButton: React.FC = () => {
     filePath: ''
   });
   const logsContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Detect current platform
+  const platform = window.location.hostname.includes('soundcloud.com') ? 'soundcloud' : 'youtube';
 
   const addLog = (level: LogEntry['level'], message: string) => {
     setLogs(prev => [...prev, {
@@ -60,6 +64,7 @@ const YouTubeDownloadButton: React.FC = () => {
         setIsExpanded(false);
         setIsDownloading(false);
         setLogs([]);
+        setShowAllLogs(false);
         setProgress(0);
         setIsAlreadyDownloaded(false);
         setIsCheckingFile(true);
@@ -118,18 +123,32 @@ const YouTubeDownloadButton: React.FC = () => {
         return;
       }
       
-      // Get video title from YouTube page with multiple selector attempts
-      let titleElement = document.querySelector('h1.ytd-video-primary-info-renderer yt-formatted-string') ||
-                        document.querySelector('h1.ytd-watch-metadata yt-formatted-string') ||
-                        document.querySelector('h1[data-title]') ||
-                        document.querySelector('h1 yt-formatted-string') ||
-                        document.querySelector('.ytd-video-primary-info-renderer h1') ||
-                        document.querySelector('.ytd-watch-metadata h1') ||
-                        document.querySelector('#title h1') ||
-                        document.querySelector('ytd-video-primary-info-renderer h1') ||
-                        document.querySelector('ytd-watch-metadata h1');
+      // Get title from current platform
+      let titleElement: Element | null = null;
+      
+      if (platform === 'soundcloud') {
+        // SoundCloud title selectors
+        titleElement = document.querySelector('.soundTitle__title') ||
+                      document.querySelector('h1[aria-label*="track"]') ||
+                      document.querySelector('.sound__soundTitle h1') ||
+                      document.querySelector('.fullHero__title') ||
+                      document.querySelector('[data-testid="sound-title"]') ||
+                      document.querySelector('.trackItem__trackTitle');
+      } else {
+        // YouTube title selectors
+        titleElement = document.querySelector('h1.ytd-video-primary-info-renderer yt-formatted-string') ||
+                      document.querySelector('h1.ytd-watch-metadata yt-formatted-string') ||
+                      document.querySelector('h1[data-title]') ||
+                      document.querySelector('h1 yt-formatted-string') ||
+                      document.querySelector('.ytd-video-primary-info-renderer h1') ||
+                      document.querySelector('.ytd-watch-metadata h1') ||
+                      document.querySelector('#title h1') ||
+                      document.querySelector('ytd-video-primary-info-renderer h1') ||
+                      document.querySelector('ytd-watch-metadata h1');
+      }
       
       console.log('YTM Extension: Looking for title element...', {
+        platform,
         found: !!titleElement,
         url: window.location.href,
         pathname: window.location.pathname
@@ -245,6 +264,7 @@ const YouTubeDownloadButton: React.FC = () => {
   const handleStartDownload = async () => {
     setIsDownloading(true);
     setLogs([]);
+    setShowAllLogs(false);
     setProgress(0);
     setDownloadStatus({
       songName: '',
@@ -378,7 +398,7 @@ const YouTubeDownloadButton: React.FC = () => {
             }`}>
             <div className="text-2xl font-bold flex items-center gap-3">
               <Music className="w-7 h-7" />
-              YOUTUBE-TO-MUSIC
+              {platform === 'soundcloud' ? 'SOUNDCLOUD-TO-MUSIC' : 'YOUTUBE-TO-MUSIC'}
             </div>
             <div className="text-lg opacity-90 mt-1">
               {isDownloading ? 'DOWNLOADING...' : hasMissingDependencies ? 'MISSING DEPENDENCIES' : isCheckingFile ? 'CHECKING FILE STATUS...' : isAlreadyDownloaded ? 'ALREADY DOWNLOADED' : 'READY TO DOWNLOAD'}
@@ -503,24 +523,52 @@ const YouTubeDownloadButton: React.FC = () => {
 
           {/* Logs - Only when downloading or if there are logs */}
           {(isDownloading || logs.length > 0) && (
-            <div 
-              ref={logsContainerRef}
-              className="p-5 max-h-80 overflow-y-auto text-lg scroll-smooth"
-            >
+            <div className="p-5">
               {logs.length === 0 ? (
-                <div className="text-green-400">WAITING FOR LOGS...</div>
+                <div className="text-green-400 text-lg h-12 flex items-center">WAITING FOR LOGS...</div>
               ) : (
-                <div className="space-y-3">
-                  {logs.map((log, index) => (
-                    <div key={index} className="text-green-100">
-                      <span className="text-green-400 text-base">
-                        {formatTime(log.timestamp)}
-                      </span>
-                      <span className="ml-4">
-                        {log.message}
-                      </span>
-                    </div>
-                  ))}
+                <div>
+                  {/* Fixed height container for logs */}
+                  <div className="h-12 mb-4">
+                    {showAllLogs ? (
+                      <div 
+                        ref={logsContainerRef}
+                        className="text-lg scroll-smooth max-h-80 overflow-y-auto space-y-3"
+                      >
+                        {logs.map((log, index) => (
+                          <div key={index} className="text-green-100">
+                            <span className="text-green-400 text-base">
+                              {formatTime(log.timestamp)}
+                            </span>
+                            <span className="ml-4">
+                              {log.message}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      logs.length > 0 && (
+                        <div className="text-green-100 h-12 overflow-hidden">
+                          <div className="text-green-400 text-base leading-6">
+                            {formatTime(logs[logs.length - 1].timestamp)}
+                          </div>
+                          <div className="text-lg leading-6 truncate">
+                            {logs[logs.length - 1].message}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                  
+                  {/* Show logs button */}
+                  {logs.length > 1 && (
+                    <button
+                      onClick={() => setShowAllLogs(!showAllLogs)}
+                      className="px-4 py-2 bg-green-700 hover:bg-green-600 rounded border border-green-400 transition-colors text-base font-semibold text-green-100"
+                    >
+                      {showAllLogs ? `HIDE LOGS (${logs.length} total)` : `SHOW ALL LOGS (${logs.length} total)`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -555,7 +603,7 @@ const YouTubeDownloadButton: React.FC = () => {
   );
 };
 
-// Inject the component into YouTube pages
+// Inject the component into YouTube and SoundCloud pages
 function injectDownloadButton() {
   // Remove existing button if present
   const existingContainer = document.getElementById('ytm-download-container');
@@ -563,8 +611,23 @@ function injectDownloadButton() {
     existingContainer.remove();
   }
 
-  // Only show on video pages
-  if (window.location.pathname === '/watch') {
+  // Check if we should show the button based on platform and URL
+  const shouldShowButton = () => {
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    
+    if (hostname.includes('youtube.com')) {
+      // YouTube: only on video pages
+      return pathname === '/watch';
+    } else if (hostname.includes('soundcloud.com')) {
+      // SoundCloud: on track pages (contains /artist/track-name)
+      return pathname.split('/').length >= 3 && !pathname.includes('/sets/') && !pathname.endsWith('/tracks') && !pathname.endsWith('/albums') && !pathname.endsWith('/reposts');
+    }
+    
+    return false;
+  };
+
+  if (shouldShowButton()) {
     const container = document.createElement('div');
     container.id = 'ytm-download-container';
     document.body.appendChild(container);
